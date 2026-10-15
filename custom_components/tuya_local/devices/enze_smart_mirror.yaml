@@ -1,0 +1,134 @@
+# ENZE Square Smart LED Bathroom Mirror
+# Product id: si8mvylmzz3ph3vu
+#
+# DP functions confirmed by empirical testing (Smart Life app actions
+# correlated with debug logs):
+#   DP110 bool  light on/off command (DP1 follows ~2s later as state report)
+#   DP1   bool  light state report - do NOT write (triggers firmware link quirk)
+#   DP2   bool  defogger on/off
+#   DP5   int   brightness 1-100
+#   DP6   int   color temp in raw Kelvin, 3000-6000
+#   DP101 int   light countdown remaining, minutes
+#   DP102 int   defog countdown remaining, minutes
+#   DP104 str   light working state: "closed"/"running"
+#   DP106 int   light off timer setting, hours 0-24
+#   DP107 int   defog timer setting, hours 0-24
+#
+# Note: the device firmware links DP1/DP2 on single-DP LAN writes. The light
+# is controlled via DP110 (the command DP the app uses). The defogger uses
+# a constraint to explicitly pin the light state, preventing the link quirk.
+# Requires the _active_condition fix for correct multi-condition handling.
+name: Mirror
+products:
+  - id: si8mvylmzz3ph3vu
+    manufacturer: ENZE
+    model: Square Smart LED Bathroom Mirror
+entities:
+  - entity: light
+    dps:
+      - id: 110
+        type: boolean
+        name: switch
+      - id: 5
+        type: integer
+        name: brightness
+        optional: true
+        range:
+          min: 1
+          max: 100
+      - id: 6
+        type: integer
+        name: color_temp
+        optional: true
+        range:
+          min: 3000
+          max: 6000
+        mapping:
+          - target_range:
+              min: 3000
+              max: 6000
+  - entity: switch
+    name: Defogger
+    dps:
+      - id: 2
+        type: boolean
+        name: switch
+        mapping:
+          - dps_val: true
+            value: true
+            constraint: light_cmd
+            conditions:
+              - dps_val: false
+                value: true
+              - dps_val: true
+                value: true
+          - dps_val: false
+            value: false
+      - id: 110
+        type: boolean
+        name: light_cmd
+        hidden: true
+  - entity: number
+    name: Light off timer
+    translation_key: timer
+    class: duration
+    category: config
+    dps:
+      - id: 106
+        type: integer
+        name: value
+        unit: h
+        optional: true
+        range:
+          min: 0
+          max: 24
+  - entity: number
+    name: Defog timer
+    translation_key: timer
+    class: duration
+    category: config
+    dps:
+      - id: 107
+        type: integer
+        name: value
+        unit: h
+        optional: true
+        range:
+          min: 0
+          max: 24
+  - entity: sensor
+    name: Light time remaining
+    class: duration
+    category: diagnostic
+    dps:
+      - id: 101
+        type: integer
+        name: sensor
+        unit: min
+        class: measurement
+        optional: true
+  - entity: sensor
+    name: Defog time remaining
+    class: duration
+    category: diagnostic
+    dps:
+      - id: 102
+        type: integer
+        name: sensor
+        unit: min
+        class: measurement
+        optional: true
+  - entity: sensor
+    name: Light state
+    class: enum
+    category: diagnostic
+    dps:
+      - id: 104
+        type: string
+        name: sensor
+        optional: true
+        mapping:
+          - dps_val: "closed"
+            value: "off"
+          - dps_val: "running"
+            value: "on"
