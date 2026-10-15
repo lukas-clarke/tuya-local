@@ -934,6 +934,7 @@ class TuyaDpsConfig:
         constraint = mapping.get("constraint", self.name)
         conditions = mapping.get("conditions")
         c_match = None
+        value_match = None
         if constraint and conditions:
             c_dps = self._entity.find_dps(constraint)
             # base64 and hex have to be decoded
@@ -968,12 +969,15 @@ class TuyaDpsConfig:
                     and (int(c_val) & int(cond_dpval)) == int(cond_dpval)
                 ):
                     c_match = cond
-                # when changing, another condition may become active
-                # return that if it exists over a current condition
+                # Prefer an already active condition for the requested value.
+                # Otherwise, keep the first value match so the constraint can change.
                 if value is not None and value == cond.get("value"):
-                    return cond
+                    if c_match is cond:
+                        return cond
+                    if value_match is None:
+                        value_match = cond
 
-        return c_match
+        return value_match if value_match is not None else c_match
 
     def get_values_to_set(self, device, value, pending_map=None):
         """Return the dps values that would be set when setting to value"""

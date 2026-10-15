@@ -504,7 +504,7 @@ Note that when dealing with `hex` and `base64` constraints, the resolved HA valu
 
 When setting a dp which has conditions attached, the behaviour is slightly different depending on whether the constraint dp is readonly or not.
 
-For non-readonly constraints that specify a single dps_val, the constraint dp will be set along with the target dp so that the first condition with a value matching the target value is met.
+For non-readonly constraints that specify a single dps_val, the constraint dp will be set along with the target dp so that the first condition with a value matching the target value is met. If multiple conditions match the target value, a condition matching the current constraint state is preferred.
 
 For readonly constraints, the condition must match the constraint dp's current value for anything to be set.
 

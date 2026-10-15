@@ -1020,3 +1020,80 @@ def test_writing_target_range(mocker):
     mock_device = mocker.MagicMock()
     cfg = TuyaDpsConfig(mock_entity, mock_config)
     assert cfg.get_values_to_set(mock_device, 100) == {"1": 16}
+
+
+@pytest.mark.parametrize("constraint_value", [False, True])
+@pytest.mark.parametrize("condition_order", [(False, True), (True, False)])
+def test_active_condition_with_duplicate_values(
+    mocker, constraint_value, condition_order
+):
+    """Prefer the current constraint when multiple conditions accept a value."""
+    device = mock_device({"110": constraint_value, "2": False}, mocker)
+    entity = TuyaEntityConfig(
+        device,
+        {
+            "entity": "switch",
+            "dps": [
+                {
+                    "id": 2,
+                    "name": "switch",
+                    "type": "boolean",
+                    "mapping": [
+                        {
+                            "dps_val": True,
+                            "value": True,
+                            "constraint": "light_cmd",
+                            "conditions": [
+                                {"dps_val": state, "value": True}
+                                for state in condition_order
+                            ],
+                        },
+                        {"dps_val": False, "value": False},
+                    ],
+                },
+                {"id": 110, "name": "light_cmd", "type": "boolean"},
+            ],
+        },
+    )
+    cfg = entity.find_dps("switch")
+    assert cfg.get_values_to_set(device, True) == {"110": constraint_value, "2": True}
+
+
+@pytest.mark.parametrize(
+    ("constraint_value", "target", "expected"),
+    [("a", "y", "c"), ("b", "x", "a"), ("unknown", "x", "a")],
+)
+def test_active_condition_can_change_constraint(
+    mocker, constraint_value, target, expected
+):
+    """Keep the first value match when no matching condition is active."""
+    device = mock_device({"1": 1, "2": constraint_value}, mocker)
+    entity = TuyaEntityConfig(
+        device,
+        {
+            "entity": "select",
+            "dps": [
+                {
+                    "id": 1,
+                    "name": "option",
+                    "type": "integer",
+                    "mapping": [
+                        {
+                            "dps_val": 1,
+                            "constraint": "mode",
+                            "conditions": [
+                                {"dps_val": "a", "value": "x"},
+                                {"dps_val": "b", "value": "z"},
+                                {"dps_val": "c", "value": "y"},
+                            ],
+                        }
+                    ],
+                },
+                {"id": 2, "name": "mode", "type": "string"},
+            ],
+        },
+    )
+    assert entity.find_dps("option").get_values_to_set(device, target) == {
+        "1": 1,
+        "2": expected,
+    }
