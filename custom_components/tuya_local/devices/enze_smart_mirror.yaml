@@ -3,21 +3,21 @@
 #
 # DP functions confirmed by empirical testing (Smart Life app actions
 # correlated with debug logs):
-#   DP110 bool  light on/off command (DP1 follows ~2s later as state report)
-#   DP1   bool  light state report - do NOT write (triggers firmware link quirk)
+#   DP110 bool  light on/off command
+#   DP1   bool  true when either light or defogger is on in observed tests
 #   DP2   bool  defogger on/off
 #   DP5   int   brightness 1-100
 #   DP6   int   color temp in raw Kelvin, 3000-6000
 #   DP101 int   light countdown remaining, minutes
 #   DP102 int   defog countdown remaining, minutes
-#   DP104 str   light working state: "closed"/"running"
+#   DP104 str   reported working state; stayed "closed" during live tests
 #   DP106 int   light off timer setting, hours 0-24
 #   DP107 int   defog timer setting, hours 0-24
 #
 # Note: the device firmware links DP1/DP2 on single-DP LAN writes. The light
 # is controlled via DP110 (the command DP the app uses). The defogger uses
 # a constraint to explicitly pin the light state, preventing the link quirk.
-# Requires the _active_condition fix for correct multi-condition handling.
+# Uses availability to select the light-on condition only while the light is on.
 name: Mirror
 products:
   - id: si8mvylmzz3ph3vu
@@ -58,9 +58,10 @@ entities:
             value: true
             constraint: light_cmd
             conditions:
-              - dps_val: false
-                value: true
               - dps_val: true
+                value: true
+                available: light_cmd
+              - dps_val: false
                 value: true
           - dps_val: false
             value: false
